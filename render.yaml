@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: telegram-reminder-VERSION2
+    env: python
+    buildCommand: ""
+    startCommand: "python main.py"
+    plan: free
