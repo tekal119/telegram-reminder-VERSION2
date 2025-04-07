@@ -1,7 +1,7 @@
 import os
 import random
-import datetime
 from flask import Flask, request, jsonify
+import datetime
 import requests
 
 app = Flask(__name__)
@@ -9,20 +9,19 @@ app = Flask(__name__)
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
-MENSAJES_MOTIVACIONALES = [
+FRASES_MOTIVACIONALES = [
     "Cada esfuerzo suma. No pares.",
-    "La disciplina es la clave. Seguí avanzando.",
-    "Estás cada vez más cerca. No te detengas.",
-    "Hoy es un gran día para dar un paso más.",
-    "No hace falta que sea perfecto. Hace falta que sea real."
+    "La disciplina es tu mejor aliada. Dale con todo.",
+    "No tiene que salir perfecto. Tiene que salir real.",
+    "Lo que hagas hoy, tu yo del futuro te lo va a agradecer.",
+    "No esperes el momento perfecto. Hacelo ahora."
 ]
 
 def enviar_a_telegram(mensaje):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
-        "text": mensaje,
-        "parse_mode": "Markdown"
+        "text": mensaje
     }
     requests.post(url, json=payload)
 
@@ -30,48 +29,39 @@ def enviar_a_telegram(mensaje):
 def actualizar_tareas():
     datos = request.json
 
-    def fecha_actual_larga():
-        hoy = datetime.datetime.now()
-        return hoy.strftime("%-d de %B de %Y").capitalize()
+    # Convertir fechas
+    def fecha_formateada(fecha_str):
+        try:
+            fecha = datetime.datetime.strptime(fecha_str, "%d/%m/%Y")
+            return fecha.strftime("%-d de %B de %Y")
+        except:
+            return None
 
-    def prioridad_texto(p):
-        p = p.lower()
-        if "alta" in p:
-            return "alta"
-        elif "media" in p:
-            return "media"
-        elif "baja" in p:
-            return "baja"
-        else:
-            return ""
+    fecha_hoy = fecha_formateada(datetime.datetime.now().strftime("%d/%m/%Y"))
+    fecha_limite = fecha_formateada(datos["F2"]) if datos["F2"] else None
 
-    tarea = datos["E2"].strip().lower() if datos.get("E2") else ""
-    categoria = datos["D2"].strip().lower() if datos.get("D2") else ""
-    prioridad = prioridad_texto(datos["C2"]) if datos.get("C2") else ""
-    detalles = datos["J2"].strip() if datos.get("J2") else ""
+    # Construcción del mensaje en prosa
+    mensaje = f"📌 Recordá que hoy, {fecha_hoy}, "
 
-    mensaje = f"📌 Recordá que hoy, {fecha_actual_larga()}, tenés que {tarea}"
-    if categoria:
-        mensaje += f" correspondiente a {categoria}"
-    mensaje += "."
-
-    if prioridad:
-        mensaje += f" Esta tarea tiene prioridad {prioridad}"
-        if prioridad == "alta":
-            mensaje += " 🔴"
-        elif prioridad == "media":
-            mensaje += " 🟡"
-        elif prioridad == "baja":
-            mensaje += " 🟢"
+    if datos["E2"]:
+        mensaje += f"tenés que {datos['E2'].strip().lower()}"
+        if datos["D2"]:
+            mensaje += f", en el área de {datos['D2'].strip().lower()}"
+        if datos["J2"]:
+            mensaje += f", lo cual implica {datos['J2'].strip().lower()}"
         mensaje += "."
 
-    if detalles:
-        mensaje += f" Implica {detalles}."
+    if datos["C2"]:
+        mensaje += f" Esta tarea tiene prioridad {datos['C2'].strip().lower()}."
 
-    mensaje += f"\n🔥 {random.choice(MENSAJES_MOTIVACIONALES)} 🔥"
+    if fecha_limite:
+        mensaje += f" Debe estar completada antes del {fecha_limite}."
+
+    # Frase motivacional al final
+    mensaje += f"\n\n🔥 {random.choice(FRASES_MOTIVACIONALES)} 🔥"
 
     enviar_a_telegram(mensaje)
-    return jsonify({"status": "ok", "message": "Recordatorio enviado correctamente."})
+    return jsonify({"status": "ok", "message": "Mensaje enviado correctamente."})
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=10000)
